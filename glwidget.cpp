@@ -108,7 +108,7 @@ GLWidget::GLWidget(QWidget *parent)
         stateSet->setMode( GL_DEPTH_TEST, osg::StateAttribute::ON );
     }
 
-    float aspectRatio = static_cast<float>( this->width() / 2 ) / static_cast<float>( this->height() );
+    float aspectRatio = static_cast<float>( this->width() ) / static_cast<float>( this->height() );
 
     osg::Camera* camera = new osg::Camera;
     camera->setViewport( 0, 0, this->width() / 2, this->height() );
@@ -125,22 +125,7 @@ GLWidget::GLWidget(QWidget *parent)
 #endif
     view->setCameraManipulator( new osgGA::TrackballManipulator );
 
-    osg::Camera* sideCamera = new osg::Camera;
-    sideCamera->setViewport( this->width() /2, 0,
-                            this->width() /2, this->height() );
-
-    sideCamera->setClearColor( osg::Vec4( 0.f, 0.f, 1.f, 1.f ) );
-    sideCamera->setProjectionMatrixAsPerspective( 30.f, aspectRatio, 1.f, 1000.f );
-    sideCamera->setGraphicsContext( graphicsWindow_ );
-
-    osgViewer::View* sideView = new osgViewer::View;
-    sideView->setCamera( sideCamera );
-    sideView->setSceneData( geode );
-    sideView->addEventHandler( new osgViewer::StatsHandler );
-    sideView->setCameraManipulator( new osgGA::TrackballManipulator );
-
     viewer_->addView( view );
-    viewer_->addView( sideView );
     viewer_->setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
 
     // This ensures that the widget will receive keyboard events. This focus
@@ -315,10 +300,9 @@ void GLWidget::onResize( int width, int height )
   std::vector<osg::Camera*> cameras;
   viewer_->getCameras( cameras );
 
-  assert( cameras.size() == 2 );
+  assert( cameras.size() == 1 );
 
-  cameras[0]->setViewport( 0, 0, this->width() / 2, this->height() );
-  cameras[1]->setViewport( this->width() / 2, 0, this->width() / 2, this->height() );
+  cameras[0]->setViewport( 0, 0, this->width(), this->height() );
 }
 
 osgGA::EventQueue* GLWidget::getEventQueue() const

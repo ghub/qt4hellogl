@@ -38,162 +38,99 @@
 **
 ****************************************************************************/
 
+#include <cassert>
+#include <math.h>
+
 #include <QtGui>
 #include <QtOpenGL>
 
-#include <math.h>
+#include <GL/glu.h>
 
-#include <cassert>
+#include <osg/Camera>
+#include <osgDB/ReadFile>
+#include <osg/Geode>
+#include <osg/Material>
+#include <osg/ShapeDrawable>
+#include <osgViewer/View>
 
 #include "glwidget.h"
 #include "qtlogo.h"
-
-#include <osg/Camera>
-
-#include <osg/DisplaySettings>
-#include <osg/Geode>
-#include <osg/Material>
-#include <osg/Shape>
-#include <osg/ShapeDrawable>
-#include <osg/StateSet>
-
-#include <osgDB/ReadFile>
-
-#include <osgGA/EventQueue>
-#include <osgGA/TrackballManipulator>
-
-#include <osgUtil/IntersectionVisitor>
-#include <osgUtil/PolytopeIntersector>
-
-#include <osgViewer/View>
-#include <osgViewer/ViewerEventHandlers>
 
 #ifndef GL_MULTISAMPLE
 #define GL_MULTISAMPLE  0x809D
 #endif
 
-//! [0]
 GLWidget::GLWidget(QWidget *parent)
-    : QGLWidget(QGLFormat(QGL::SampleBuffers), parent)
-    , graphicsWindow_( new osgViewer::GraphicsWindowEmbedded(
+    : QGLWidget(
+        QGLFormat(QGL::SampleBuffers),
+        parent)
+    , logo(0)
+    , xRot(0)
+    , yRot(0)
+    , zRot(0)
+    , qtGreen(QColor::fromCmykF(
+        0.40,
+        0.0,
+        1.0,
+        0.0))
+    , qtPurple(QColor::fromCmykF(
+        0.39,
+        0.39,
+        0.0,
+        0.0))
+    , graphicsWindow_(new osgViewer::GraphicsWindowEmbedded(
         this->x(),
         this->y(),
         this->width(),
-        this->height() ) )
-    , viewer_( new osgViewer::CompositeViewer )
+        this->height()))
+    , camera_(new osg::Camera)
+    , view_(new osgViewer::View)
+    , viewer_(new osgViewer::CompositeViewer)
 {
-    logo = 0;
-    xRot = 0;
-    yRot = 0;
-    zRot = 0;
-
-    qtGreen = QColor::fromCmykF(0.40, 0.0, 1.0, 0.0);
-    qtPurple = QColor::fromCmykF(0.39, 0.39, 0.0, 0.0);
-
-#if 1
-    osg::Sphere* sphere    = new osg::Sphere( osg::Vec3( 0.f, 0.f, 0.f ), 0.25f );
-    osg::ShapeDrawable* sd = new osg::ShapeDrawable( sphere );
-    sd->setColor( osg::Vec4( 1.f, 0.f, 0.f, 1.f ) );
-    sd->setName( "A nice sphere" );
-
-    osg::Geode* geode = new osg::Geode;
-    geode->addDrawable( sd );
-    osg::Group* root = new osg::Group;
-    root->addChild(geode);
-#else
-    osg::Node* root = osgDB::readNodeFile("cessna.osg");
-#endif
-
-    // Set material for basic lighting and enable depth tests. Else, the sphere
-    // will suffer from rendering errors.
-    {
-        osg::StateSet* stateSet = root->getOrCreateStateSet();
-        osg::Material* material = new osg::Material;
-
-        material->setColorMode( osg::Material::AMBIENT_AND_DIFFUSE );
-
-        stateSet->setAttributeAndModes( material, osg::StateAttribute::ON );
-        stateSet->setMode( GL_DEPTH_TEST, osg::StateAttribute::ON );
-    }
-
-    float aspectRatio = static_cast<float>( this->width() ) / static_cast<float>( this->height() );
-
-    osg::Camera* camera = new osg::Camera;
-    camera->setViewport( 0, 0, this->width() / 2, this->height() );
-    camera->setClearColor( osg::Vec4( 0.f, 0.f, 1.f, 1.f ) );
-    camera->setProjectionMatrixAsPerspective( 30.f, aspectRatio, 1.f, 1000.f );
-    camera->setGraphicsContext( graphicsWindow_ );
-
-    osgViewer::View* view = new osgViewer::View;
-    view->setCamera( camera );
-    view->setSceneData( root );
-    view->addEventHandler( new osgViewer::StatsHandler );
-#ifdef WITH_PICK_HANDLER
-    //view->addEventHandler( new PickHandler );
-#endif
-    view->setCameraManipulator( new osgGA::TrackballManipulator );
-
-    viewer_->addView( view );
-    viewer_->setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
-
-    // This ensures that the widget will receive keyboard events. This focus
-    // policy is not set by default. The default, Qt::NoFocus, will result in
-    // keyboard events that are ignored.
-    this->setFocusPolicy( Qt::StrongFocus );
-    this->setMinimumSize( 100, 100 );
-
-    // Ensures that the widget receives mouse move events even though no
-    // mouse button has been pressed. We require this in order to let the
-    // graphics window switch viewports properly.
-    this->setMouseTracking( true );
 }
-//! [0]
 
-//! [1]
 GLWidget::~GLWidget()
 {
 }
-//! [1]
 
-//! [2]
 QSize GLWidget::minimumSizeHint() const
 {
     return QSize(50, 50);
 }
-//! [2]
 
-//! [3]
 QSize GLWidget::sizeHint() const
-//! [3] //! [4]
 {
     return QSize(400, 400);
 }
-//! [4]
 
 static void qNormalizeAngle(int &angle)
 {
     while (angle < 0)
+    {
         angle += 360 * 16;
+    }
     while (angle > 360 * 16)
+    {
         angle -= 360 * 16;
+    }
 }
 
-//! [5]
 void GLWidget::setXRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != xRot) {
+    if (angle != xRot)
+    {
         xRot = angle;
         emit xRotationChanged(angle);
         updateGL();
     }
 }
-//! [5]
 
 void GLWidget::setYRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != yRot) {
+    if (angle != yRot)
+    {
         yRot = angle;
         emit yRotationChanged(angle);
         updateGL();
@@ -203,122 +140,169 @@ void GLWidget::setYRotation(int angle)
 void GLWidget::setZRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != zRot) {
+    if (angle != zRot)
+    {
         zRot = angle;
         emit zRotationChanged(angle);
         updateGL();
     }
 }
 
-//! [6]
 void GLWidget::initializeGL()
 {
-    qglClearColor(qtPurple.dark());
+    initializeQt();
+    initializeOsg();
+}
 
+void GLWidget::initializeQt()
+{
     logo = new QtLogo(this, 64);
     logo->setColor(qtGreen.dark());
 
+    // This ensures that the widget will receive keyboard events. This focus
+    // policy is not set by default. The default, Qt::NoFocus, will result in
+    // keyboard events that are ignored.
+    this->setFocusPolicy(Qt::StrongFocus);
+    this->setMinimumSize(100, 100);
+
+    // Ensures that the widget receives mouse move events even though no
+    // mouse button has been pressed. We require this in order to let the
+    // graphics window switch viewports properly.
+    this->setMouseTracking(true);
+}
+
+void GLWidget::initializeOsg()
+{
+    camera_->setClearMask(0);
+    camera_->setGraphicsContext(graphicsWindow_.data());
+
+    view_->setCamera(camera_);
+    view_->setSceneData(createOsgModel());
+
+    viewer_->addView(view_);
+    viewer_->setThreadingModel(osgViewer::CompositeViewer::SingleThreaded);
+}
+
+osg::Node* GLWidget::createOsgModel()
+{
+#if 1
+    osg::ShapeDrawable* shape = new osg::ShapeDrawable(
+        new osg::Box(
+            osg::Vec3(0.f, 0.f, 0.f),
+            1.0f));
+    shape->setColor(osg::Vec4(1.f, 0.f, 0.f, 0.5f));
+
+    osg::Geode* geode = new osg::Geode;
+    geode->addDrawable(shape);
+
+    osg::Group* root = new osg::Group;
+    root->addChild(geode);
+#else
+    osg::Node* root = osgDB::readNodeFile("cessna.osg");
+#endif
+
+    // Set material for basic lighting and enable depth tests. Else, the box
+    // will suffer from rendering errors.
+    {
+        osg::StateSet* stateSet = root->getOrCreateStateSet();
+        osg::Material* material = new osg::Material;
+
+        material->setColorMode(osg::Material::AMBIENT_AND_DIFFUSE);
+
+        stateSet->setAttributeAndModes(material, osg::StateAttribute::ON);
+        stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+    }
+
+    return root;
+}
+
+void GLWidget::paintGL()
+{
+    paintQt();
+    paintOsg();
+}
+
+void GLWidget::paintQt()
+{
+    qglClearColor(qtPurple.dark());
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glShadeModel(GL_SMOOTH);
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_MULTISAMPLE);
+
     static GLfloat lightPosition[4] = { 0.5, 5.0, 7.0, 1.0 };
     glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-}
-//! [6]
-
-//! [7]
-void GLWidget::paintGL()
-{
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(30.0f, aspectRatio(), 1.0f, 1000.0f);
+    glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(0.0, 0.0, -10.0);
     glRotatef(xRot / 16.0, 1.0, 0.0, 0.0);
     glRotatef(yRot / 16.0, 0.0, 1.0, 0.0);
     glRotatef(zRot / 16.0, 0.0, 0.0, 1.0);
 
-    viewer_->frame();
-
     logo->draw();
 }
-//! [7]
 
-//! [8]
+void GLWidget::paintOsg()
+{
+    GLdouble glMat[16];
+
+    glGetDoublev(GL_PROJECTION_MATRIX, glMat);
+    camera_->setProjectionMatrix(osg::Matrix(glMat));
+
+    glGetDoublev(GL_MODELVIEW_MATRIX, glMat);
+    camera_->setViewMatrix(osg::Matrix(glMat));
+
+    viewer_->frame();
+}
+
 void GLWidget::resizeGL(int width, int height)
 {
     int side = qMin(width, height);
     glViewport((width - side) / 2, (height - side) / 2, side, side);
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-#ifdef QT_OPENGL_ES_1
-    glOrthof(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
-#else
-    glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
-#endif
-    glMatrixMode(GL_MODELVIEW);
+    graphicsWindow_->resized(this->x(), this->y(), width, height);
 
-    this->getEventQueue()->windowResize( this->x(), this->y(), width, height );
-    graphicsWindow_->resized( this->x(), this->y(), width, height );
-
-    this->onResize( width, height );
+    this->onResize(width, height);
 }
-//! [8]
 
-//! [9]
 void GLWidget::mousePressEvent(QMouseEvent *event)
 {
     lastPos = event->pos();
 }
-//! [9]
 
-//! [10]
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
     int dx = event->x() - lastPos.x();
     int dy = event->y() - lastPos.y();
 
-    if (event->buttons() & Qt::LeftButton) {
+    if (event->buttons() & Qt::LeftButton)
+    {
         setXRotation(xRot + 8 * dy);
         setYRotation(yRot + 8 * dx);
-    } else if (event->buttons() & Qt::RightButton) {
+    }
+    else if (event->buttons() & Qt::RightButton)
+    {
         setXRotation(xRot + 8 * dy);
         setZRotation(zRot + 8 * dx);
     }
     lastPos = event->pos();
 }
-//! [10]
 
-void GLWidget::onHome()
+void GLWidget::onResize(int width, int height)
 {
-  osgViewer::ViewerBase::Views views;
-  viewer_->getViews( views );
-
-  for( std::size_t i = 0; i < views.size(); i++ )
-  {
-    osgViewer::View* view = views.at(i);
-    view->home();
-  }
+    camera_->setViewport(0, 0, this->width(), this->height());
 }
 
-void GLWidget::onResize( int width, int height )
+float GLWidget::aspectRatio() const
 {
-  std::vector<osg::Camera*> cameras;
-  viewer_->getCameras( cameras );
-
-  assert( cameras.size() == 1 );
-
-  cameras[0]->setViewport( 0, 0, this->width(), this->height() );
+    return static_cast<float>(this->width()) / static_cast<float>(this->height());
 }
 
-osgGA::EventQueue* GLWidget::getEventQueue() const
-{
-  osgGA::EventQueue* eventQueue = graphicsWindow_->getEventQueue();
-
-  if( eventQueue )
-    return( eventQueue );
-  else
-    throw( std::runtime_error( "Unable to obtain valid event queue") );
-}

@@ -41,29 +41,26 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
+// Qt
 #include <QGLWidget>
-
-#include <osg/ref_ptr>
+#include <QScopedPointer>
 
 #include <osgViewer/GraphicsWindow>
 #include <osgViewer/CompositeViewer>
 
 class QtLogo;
 
-//! [0]
 class GLWidget : public QGLWidget
 {
     Q_OBJECT
 
 public:
-    GLWidget(QWidget *parent = 0);
-    ~GLWidget();
+    explicit GLWidget(QWidget *parent = 0);
+    virtual ~GLWidget();
 
     QSize minimumSizeHint() const;
     QSize sizeHint() const;
-//! [0]
 
-//! [1]
 public slots:
     void setXRotation(int angle);
     void setYRotation(int angle);
@@ -73,18 +70,23 @@ signals:
     void xRotationChanged(int angle);
     void yRotationChanged(int angle);
     void zRotationChanged(int angle);
-//! [1]
 
-//! [2]
 protected:
     void initializeGL();
+    void initializeQt();
+    void initializeOsg();
     void paintGL();
+    void paintQt();
+    void paintOsg();
     void resizeGL(int width, int height);
     void mousePressEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
-//! [2]
 
-//! [3]
+private:
+    osg::Node* createOsgModel();
+    virtual void onResize(int width, int height);
+    float aspectRatio() const;
+
 private:
     QtLogo *logo;
     int xRot;
@@ -94,14 +96,10 @@ private:
     QColor qtGreen;
     QColor qtPurple;
 
-    virtual void onHome();
-    virtual void onResize( int width, int height );
-
-    osgGA::EventQueue* getEventQueue() const;
-
-    osg::ref_ptr<osgViewer::GraphicsWindowEmbedded> graphicsWindow_;
-    osg::ref_ptr<osgViewer::CompositeViewer> viewer_;
+    QScopedPointer<osgViewer::GraphicsWindowEmbedded> graphicsWindow_;
+    osg::Camera* camera_; // attached to view_
+    osgViewer::View* view_; // attached to viewer_
+    QScopedPointer<osgViewer::CompositeViewer> viewer_;
 };
-//! [3]
 
 #endif

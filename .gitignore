@@ -27,5 +27,6 @@
 *.out
 *.app
 
+build
 Makefile
 moc_*.cpp

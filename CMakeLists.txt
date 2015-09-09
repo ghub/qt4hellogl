@@ -1,0 +1,50 @@
+CMAKE_MINIMUM_REQUIRED( VERSION 2.8.9 )
+PROJECT( Qt4HelloGL )
+
+SET( CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -Wno-long-long" )
+
+SET( CMAKE_INCLUDE_CURRENT_DIR ON )
+SET( CMAKE_AUTOMOC ON )
+
+FIND_PACKAGE( OpenGL REQUIRED )
+FIND_PACKAGE( Qt4 REQUIRED QtCore QtGui QtOpenGL)
+FIND_PACKAGE( OpenSceneGraph REQUIRED COMPONENTS osgGA osgUtil osgViewer )
+
+INCLUDE( ${QT_USE_FILE} )
+INCLUDE_DIRECTORIES( ${OPENSCENEGRAPH_INCLUDE_DIRS} )
+
+SET( WITH_PICK_HANDLER         ON CACHE BOOL "Build with pick handler support" )
+SET( WITH_SELECTION_PROCESSING ON CACHE BOOL "Build with selection processing support" )
+
+SET( SOURCES
+  glwidget.cpp
+  main.cpp
+  qtlogo.cpp
+  window.cpp
+)
+
+ADD_EXECUTABLE( qt4hellogl ${SOURCES} )
+
+IF( WITH_PICK_HANDLER )
+  MESSAGE( STATUS "Building with pick handler support" )
+
+  SET_PROPERTY(
+    TARGET qt4hellogl
+    APPEND PROPERTY COMPILE_DEFINITIONS WITH_PICK_HANDLER
+  )
+ENDIF()
+
+IF( WITH_SELECTION_PROCESSING )
+  MESSAGE( STATUS "Building with selection processing support" )
+
+  SET_PROPERTY(
+    TARGET qt4hellogl
+    APPEND PROPERTY COMPILE_DEFINITIONS WITH_SELECTION_PROCESSING
+  )
+ENDIF()
+
+TARGET_LINK_LIBRARIES( qt4hellogl
+  ${OPENSCENEGRAPH_LIBRARIES}
+  ${QT_LIBRARIES}
+  ${OPENGL_LIBRARIES}
+)

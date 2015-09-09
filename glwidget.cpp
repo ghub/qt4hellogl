@@ -57,6 +57,8 @@
 #include <osg/ShapeDrawable>
 #include <osg/StateSet>
 
+#include <osgDB/ReadFile>
+
 #include <osgGA/EventQueue>
 #include <osgGA/TrackballManipulator>
 
@@ -88,6 +90,7 @@ GLWidget::GLWidget(QWidget *parent)
     qtGreen = QColor::fromCmykF(0.40, 0.0, 1.0, 0.0);
     qtPurple = QColor::fromCmykF(0.39, 0.39, 0.0, 0.0);
 
+#if 1
     osg::Sphere* sphere    = new osg::Sphere( osg::Vec3( 0.f, 0.f, 0.f ), 0.25f );
     osg::ShapeDrawable* sd = new osg::ShapeDrawable( sphere );
     sd->setColor( osg::Vec4( 1.f, 0.f, 0.f, 1.f ) );
@@ -95,11 +98,16 @@ GLWidget::GLWidget(QWidget *parent)
 
     osg::Geode* geode = new osg::Geode;
     geode->addDrawable( sd );
+    osg::Group* root = new osg::Group;
+    root->addChild(geode);
+#else
+    osg::Node* root = osgDB::readNodeFile("cessna.osg");
+#endif
 
     // Set material for basic lighting and enable depth tests. Else, the sphere
     // will suffer from rendering errors.
     {
-        osg::StateSet* stateSet = geode->getOrCreateStateSet();
+        osg::StateSet* stateSet = root->getOrCreateStateSet();
         osg::Material* material = new osg::Material;
 
         material->setColorMode( osg::Material::AMBIENT_AND_DIFFUSE );
@@ -118,7 +126,7 @@ GLWidget::GLWidget(QWidget *parent)
 
     osgViewer::View* view = new osgViewer::View;
     view->setCamera( camera );
-    view->setSceneData( geode );
+    view->setSceneData( root );
     view->addEventHandler( new osgViewer::StatsHandler );
 #ifdef WITH_PICK_HANDLER
     //view->addEventHandler( new PickHandler );

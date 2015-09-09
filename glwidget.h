@@ -43,6 +43,11 @@
 
 #include <QGLWidget>
 
+#include <osg/ref_ptr>
+
+#include <osgViewer/GraphicsWindow>
+#include <osgViewer/CompositeViewer>
+
 class QtLogo;
 
 //! [0]
@@ -88,6 +93,14 @@ private:
     QPoint lastPos;
     QColor qtGreen;
     QColor qtPurple;
+
+    virtual void onHome();
+    virtual void onResize( int width, int height );
+
+    osgGA::EventQueue* getEventQueue() const;
+
+    osg::ref_ptr<osgViewer::GraphicsWindowEmbedded> graphicsWindow_;
+    osg::ref_ptr<osgViewer::CompositeViewer> viewer_;
 };
 //! [3]
 

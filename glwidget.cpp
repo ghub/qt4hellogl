@@ -43,8 +43,28 @@
 
 #include <math.h>
 
+#include <cassert>
+
 #include "glwidget.h"
 #include "qtlogo.h"
+
+#include <osg/Camera>
+
+#include <osg/DisplaySettings>
+#include <osg/Geode>
+#include <osg/Material>
+#include <osg/Shape>
+#include <osg/ShapeDrawable>
+#include <osg/StateSet>
+
+#include <osgGA/EventQueue>
+#include <osgGA/TrackballManipulator>
+
+#include <osgUtil/IntersectionVisitor>
+#include <osgUtil/PolytopeIntersector>
+
+#include <osgViewer/View>
+#include <osgViewer/ViewerEventHandlers>
 
 #ifndef GL_MULTISAMPLE
 #define GL_MULTISAMPLE  0x809D
@@ -53,6 +73,12 @@
 //! [0]
 GLWidget::GLWidget(QWidget *parent)
     : QGLWidget(QGLFormat(QGL::SampleBuffers), parent)
+    , graphicsWindow_( new osgViewer::GraphicsWindowEmbedded(
+        this->x(),
+        this->y(),
+        this->width(),
+        this->height() ) )
+    , viewer_( new osgViewer::CompositeViewer )
 {
     logo = 0;
     xRot = 0;
@@ -61,6 +87,72 @@ GLWidget::GLWidget(QWidget *parent)
 
     qtGreen = QColor::fromCmykF(0.40, 0.0, 1.0, 0.0);
     qtPurple = QColor::fromCmykF(0.39, 0.39, 0.0, 0.0);
+
+    osg::Sphere* sphere    = new osg::Sphere( osg::Vec3( 0.f, 0.f, 0.f ), 0.25f );
+    osg::ShapeDrawable* sd = new osg::ShapeDrawable( sphere );
+    sd->setColor( osg::Vec4( 1.f, 0.f, 0.f, 1.f ) );
+    sd->setName( "A nice sphere" );
+
+    osg::Geode* geode = new osg::Geode;
+    geode->addDrawable( sd );
+
+    // Set material for basic lighting and enable depth tests. Else, the sphere
+    // will suffer from rendering errors.
+    {
+        osg::StateSet* stateSet = geode->getOrCreateStateSet();
+        osg::Material* material = new osg::Material;
+
+        material->setColorMode( osg::Material::AMBIENT_AND_DIFFUSE );
+
+        stateSet->setAttributeAndModes( material, osg::StateAttribute::ON );
+        stateSet->setMode( GL_DEPTH_TEST, osg::StateAttribute::ON );
+    }
+
+    float aspectRatio = static_cast<float>( this->width() / 2 ) / static_cast<float>( this->height() );
+
+    osg::Camera* camera = new osg::Camera;
+    camera->setViewport( 0, 0, this->width() / 2, this->height() );
+    camera->setClearColor( osg::Vec4( 0.f, 0.f, 1.f, 1.f ) );
+    camera->setProjectionMatrixAsPerspective( 30.f, aspectRatio, 1.f, 1000.f );
+    camera->setGraphicsContext( graphicsWindow_ );
+
+    osgViewer::View* view = new osgViewer::View;
+    view->setCamera( camera );
+    view->setSceneData( geode );
+    view->addEventHandler( new osgViewer::StatsHandler );
+#ifdef WITH_PICK_HANDLER
+    //view->addEventHandler( new PickHandler );
+#endif
+    view->setCameraManipulator( new osgGA::TrackballManipulator );
+
+    osg::Camera* sideCamera = new osg::Camera;
+    sideCamera->setViewport( this->width() /2, 0,
+                            this->width() /2, this->height() );
+
+    sideCamera->setClearColor( osg::Vec4( 0.f, 0.f, 1.f, 1.f ) );
+    sideCamera->setProjectionMatrixAsPerspective( 30.f, aspectRatio, 1.f, 1000.f );
+    sideCamera->setGraphicsContext( graphicsWindow_ );
+
+    osgViewer::View* sideView = new osgViewer::View;
+    sideView->setCamera( sideCamera );
+    sideView->setSceneData( geode );
+    sideView->addEventHandler( new osgViewer::StatsHandler );
+    sideView->setCameraManipulator( new osgGA::TrackballManipulator );
+
+    viewer_->addView( view );
+    viewer_->addView( sideView );
+    viewer_->setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
+
+    // This ensures that the widget will receive keyboard events. This focus
+    // policy is not set by default. The default, Qt::NoFocus, will result in
+    // keyboard events that are ignored.
+    this->setFocusPolicy( Qt::StrongFocus );
+    this->setMinimumSize( 100, 100 );
+
+    // Ensures that the widget receives mouse move events even though no
+    // mouse button has been pressed. We require this in order to let the
+    // graphics window switch viewports properly.
+    this->setMouseTracking( true );
 }
 //! [0]
 
@@ -153,6 +245,9 @@ void GLWidget::paintGL()
     glRotatef(xRot / 16.0, 1.0, 0.0, 0.0);
     glRotatef(yRot / 16.0, 0.0, 1.0, 0.0);
     glRotatef(zRot / 16.0, 0.0, 0.0, 1.0);
+
+    viewer_->frame();
+
     logo->draw();
 }
 //! [7]
@@ -171,6 +266,11 @@ void GLWidget::resizeGL(int width, int height)
     glOrtho(-0.5, +0.5, -0.5, +0.5, 4.0, 15.0);
 #endif
     glMatrixMode(GL_MODELVIEW);
+
+    this->getEventQueue()->windowResize( this->x(), this->y(), width, height );
+    graphicsWindow_->resized( this->x(), this->y(), width, height );
+
+    this->onResize( width, height );
 }
 //! [8]
 
@@ -197,3 +297,36 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
     lastPos = event->pos();
 }
 //! [10]
+
+void GLWidget::onHome()
+{
+  osgViewer::ViewerBase::Views views;
+  viewer_->getViews( views );
+
+  for( std::size_t i = 0; i < views.size(); i++ )
+  {
+    osgViewer::View* view = views.at(i);
+    view->home();
+  }
+}
+
+void GLWidget::onResize( int width, int height )
+{
+  std::vector<osg::Camera*> cameras;
+  viewer_->getCameras( cameras );
+
+  assert( cameras.size() == 2 );
+
+  cameras[0]->setViewport( 0, 0, this->width() / 2, this->height() );
+  cameras[1]->setViewport( this->width() / 2, 0, this->width() / 2, this->height() );
+}
+
+osgGA::EventQueue* GLWidget::getEventQueue() const
+{
+  osgGA::EventQueue* eventQueue = graphicsWindow_->getEventQueue();
+
+  if( eventQueue )
+    return( eventQueue );
+  else
+    throw( std::runtime_error( "Unable to obtain valid event queue") );
+}

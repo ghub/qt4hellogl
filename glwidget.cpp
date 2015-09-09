@@ -156,6 +156,9 @@ void GLWidget::initializeGL()
 
 void GLWidget::initializeQt()
 {
+    static GLfloat lightPosition[4] = { 0.5, 5.0, 7.0, 1.0 };
+    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
     logo = new QtLogo(this, 64);
     logo->setColor(qtGreen.dark());
 
@@ -197,9 +200,6 @@ osg::Node* GLWidget::createOsgModel()
 
     osg::Group* root = new osg::Group;
     root->addChild(geode);
-#else
-    osg::Node* root = osgDB::readNodeFile("cessna.osg");
-#endif
 
     // Set material for basic lighting and enable depth tests. Else, the box
     // will suffer from rendering errors.
@@ -212,6 +212,9 @@ osg::Node* GLWidget::createOsgModel()
         stateSet->setAttributeAndModes(material, osg::StateAttribute::ON);
         stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
     }
+#else
+    osg::Node* root = osgDB::readNodeFile("cessna.osg");
+#endif
 
     return root;
 }
@@ -224,28 +227,26 @@ void GLWidget::paintGL()
 
 void GLWidget::paintQt()
 {
-    qglClearColor(qtPurple.dark());
-    glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_LIGHTING);
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHTING);
     glEnable(GL_MULTISAMPLE);
-
-    static GLfloat lightPosition[4] = { 0.5, 5.0, 7.0, 1.0 };
-    glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+    glShadeModel(GL_SMOOTH);
+    qglClearColor(qtPurple.dark());
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-
-    gluPerspective(30.0f, aspectRatio(), 1.0f, 1000.0f);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glTranslatef(0.0, 0.0, -10.0);
     glRotatef(xRot / 16.0, 1.0, 0.0, 0.0);
     glRotatef(yRot / 16.0, 0.0, 1.0, 0.0);
     glRotatef(zRot / 16.0, 0.0, 0.0, 1.0);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    gluPerspective(30.0f, aspectRatio(), 1.0f, 1000.0f);
 
     logo->draw();
 }
@@ -254,11 +255,11 @@ void GLWidget::paintOsg()
 {
     GLdouble glMat[16];
 
-    glGetDoublev(GL_PROJECTION_MATRIX, glMat);
-    camera_->setProjectionMatrix(osg::Matrix(glMat));
-
     glGetDoublev(GL_MODELVIEW_MATRIX, glMat);
     camera_->setViewMatrix(osg::Matrix(glMat));
+
+    glGetDoublev(GL_PROJECTION_MATRIX, glMat);
+    camera_->setProjectionMatrix(osg::Matrix(glMat));
 
     viewer_->frame();
 }

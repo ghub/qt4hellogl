@@ -288,7 +288,16 @@ void GLWidget::paintOsg()
     glGetDoublev(GL_PROJECTION_MATRIX, glMat);
     camera_->setProjectionMatrix(osg::Matrix(glMat));
 
+    osgViewer::ViewerBase::Contexts contexts;
+    viewer_->getContexts(contexts);
+    contexts.front()->getState()->reset();
+
     viewer_->frame();
+
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_NORMAL_ARRAY);
+    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void GLWidget::resizeGL(int width, int height)

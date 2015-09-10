@@ -96,7 +96,7 @@ private:
     QColor qtGreen;
     QColor qtPurple;
 
-    QScopedPointer<osgViewer::GraphicsWindowEmbedded> graphicsWindow_;
+    osgViewer::GraphicsWindowEmbedded* graphicsWindow_;
     osg::Camera* camera_; // attached to view_
     osgViewer::View* view_; // attached to viewer_
     QScopedPointer<osgViewer::CompositeViewer> viewer_;

@@ -44,7 +44,11 @@
 #include <QtGui>
 #include <QtOpenGL>
 
+#ifdef __APPLE__
+#include <OpenGL/glu.h>
+#else
 #include <GL/glu.h>
+#endif
 
 #include <osg/Camera>
 #include <osgDB/ReadFile>
@@ -177,7 +181,7 @@ void GLWidget::initializeQt()
 void GLWidget::initializeOsg()
 {
     camera_->setClearMask(0);
-    camera_->setGraphicsContext(graphicsWindow_.data());
+    camera_->setGraphicsContext(graphicsWindow_);
 
     view_->setCamera(camera_);
     view_->setSceneData(createOsgModel());

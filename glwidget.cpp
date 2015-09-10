@@ -54,8 +54,8 @@
 #include <osgDB/ReadFile>
 #include <osg/Geode>
 #include <osg/Material>
+#include <osg/NodeVisitor>
 #include <osg/ShapeDrawable>
-#include <osgUtil/GLObjectsVisitor>
 #include <osgViewer/View>
 
 #include "glwidget.h"
@@ -64,6 +64,25 @@
 #ifndef GL_MULTISAMPLE
 #define GL_MULTISAMPLE  0x809D
 #endif
+
+class EnableVboVisitor : public osg::NodeVisitor
+{
+public:
+    EnableVboVisitor()
+        : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN) {}
+
+    void apply(osg::Geode& geode)
+    {
+        for (unsigned int i = 0; i < geode.getNumDrawables(); ++i)
+        {
+            osg::Geometry* geometry = geode.getDrawable(i)->asGeometry();
+            if (geometry)
+            {
+                geometry->setUseVertexBufferObjects(true);
+            }
+        }
+    }
+};
 
 GLWidget::GLWidget(QWidget *parent)
     : QGLWidget(
@@ -74,20 +93,20 @@ GLWidget::GLWidget(QWidget *parent)
     , yRot(0)
     , zRot(0)
     , qtGreen(QColor::fromCmykF(
-        0.40,
-        0.0,
-        1.0,
-        0.0))
+                  0.40,
+                  0.0,
+                  1.0,
+                  0.0))
     , qtPurple(QColor::fromCmykF(
-        0.39,
-        0.39,
-        0.0,
-        0.0))
+                   0.39,
+                   0.39,
+                   0.0,
+                   0.0))
     , graphicsWindow_(new osgViewer::GraphicsWindowEmbedded(
-        this->x(),
-        this->y(),
-        this->width(),
-        this->height()))
+                          this->x(),
+                          this->y(),
+                          this->width(),
+                          this->height()))
     , camera_(new osg::Camera)
     , view_(new osgViewer::View)
     , viewer_(new osgViewer::CompositeViewer)
@@ -221,10 +240,8 @@ osg::Node* GLWidget::createOsgModel()
     osg::Node* root = osgDB::readNodeFile("cow.osg");
 #endif
 
-    //osgUtil::GLObjectsVisitor vboEnabler(
-        //osgUtil::GLObjectsVisitor::SWITCH_OFF_DISPLAY_LISTS |
-        //osgUtil::GLObjectsVisitor::SWITCH_ON_VERTEX_BUFFER_OBJECTS);
-    //root->accept(vboEnabler);
+    EnableVboVisitor vboEnabler;
+    root->accept(vboEnabler);
 
     return root;
 }

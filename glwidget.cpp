@@ -55,6 +55,7 @@
 #include <osg/Geode>
 #include <osg/Material>
 #include <osg/ShapeDrawable>
+#include <osgUtil/GLObjectsVisitor>
 #include <osgViewer/View>
 
 #include "glwidget.h"
@@ -192,7 +193,7 @@ void GLWidget::initializeOsg()
 
 osg::Node* GLWidget::createOsgModel()
 {
-#if 1
+#if 0
     osg::ShapeDrawable* shape = new osg::ShapeDrawable(
         new osg::Box(
             osg::Vec3(0.f, 0.f, 0.f),
@@ -217,8 +218,13 @@ osg::Node* GLWidget::createOsgModel()
         stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
     }
 #else
-    osg::Node* root = osgDB::readNodeFile("cessna.osg");
+    osg::Node* root = osgDB::readNodeFile("cow.osg");
 #endif
+
+    //osgUtil::GLObjectsVisitor vboEnabler(
+        //osgUtil::GLObjectsVisitor::SWITCH_OFF_DISPLAY_LISTS |
+        //osgUtil::GLObjectsVisitor::SWITCH_ON_VERTEX_BUFFER_OBJECTS);
+    //root->accept(vboEnabler);
 
     return root;
 }
